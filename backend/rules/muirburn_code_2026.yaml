@@ -1,0 +1,38 @@
+ruleset_version: "muirburn_code_2026"
+last_verified: "2026-07-28"
+season:
+  transition_25_26:
+    start: "2025-10-01"
+    end: "2026-03-31"
+  standard:
+    start_month_day: "09-15"
+    end_month_day: "03-31"
+slope:
+  prohibited_degrees: 45
+  assessment_required_degrees: 27
+buffers_m:
+  peat_hag: 30
+  bare_peat_large: 30
+  native_woodland: 10
+  public_road: 30
+watercourse_buffers_m:
+  under_2m: 10
+  "2_to_15m": 15
+  over_15m: 30
+timing:
+  no_burn_after_sunset_hours: 1
+  no_burn_before_sunrise_hours: 1
+notifications:
+  notify_radius_km: 1
+  min_days_before_burn: 7
+  further_info_deadline: "eod_before_burn"
+should_not:
+  bare_peat_large_m2: 4
+best_practice:
+  distance_from_artificial_drain_m: 30
+  distance_from_bare_peat_general_m: 30
+sfrs_regions:
+  north: {name: "Dundee Control Room", phone: "01382 835804"}
+  east: {name: "Edinburgh Control Room", phone: "0131 228 1367"}
+  west: {name: "Johnstone Control Room", phone: "01505 331661"}
+  general: {name: "Non-emergency", phone: "0141 646 4500"}
