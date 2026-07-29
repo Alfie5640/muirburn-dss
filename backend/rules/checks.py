@@ -30,3 +30,23 @@ def check_in_season(check_date: date, rules: dict) -> dict:
         "date": check_date.isoformat(),
         "in_season": in_season,
     }
+
+def check_slope(slope_to_check: float, rules: dict) -> dict:
+    slope = rules["slope"]
+    slope_prohib = slope["prohibited_degrees"]
+    slope_assess = slope["assessment_required_degrees"]
+
+    if slope_to_check > slope_prohib:
+        slope_status = "prohibited"
+    elif slope_to_check > slope_assess:
+        slope_status = "assessment_required"
+    else:
+        slope_status = "clear"
+
+    return {
+        "check": "slope",
+        "slope": slope_to_check,
+        "prohibited_degrees": slope_prohib,
+        "assess_degrees": slope_assess,
+        "slope_status": slope_status
+    }
