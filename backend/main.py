@@ -1,19 +1,14 @@
 from fastapi import FastAPI
-import datetime
-import yaml
+from datetime import date
+from rules.checks import load_rules, check_in_season
 
 app = FastAPI()
+rules = load_rules()
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
 @app.get("/season")
-def check_in_season() -> bool:
-    currTime = datetime.datetime.now()
-    with open('rules/muirburn_code_2026.yaml') as f:
-        data = yaml.load(f, Loader=yaml.SafeLoader)
-
-    start_of_season = data["season"]["standard"]["start_month_day"] #09-15
-    end_of_season = data["season"]["standard"]["end_month_day"] #03-31
-    return True
+def season_check(check_date: date):
+    return check_in_season(check_date, rules)
