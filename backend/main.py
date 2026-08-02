@@ -13,6 +13,7 @@ from rules.checks import (
     check_landowner_notification,
     lookup_sfrs_region,
     fetch_features_for_check,
+    check_peatland_status,
 )
 
 app = FastAPI()
@@ -34,6 +35,7 @@ class CheckRequest(BaseModel):
     native_woodland_distance_m: float
     public_road_distance_m: float
     artificial_drain_distance_m: float
+    peatland_status: str
 
     notification_date: date
     previous_season_end: date
@@ -48,6 +50,7 @@ def run_check(req: CheckRequest):
         check_in_season(req.burn_date, RULES),
         check_slope(req.slope_degrees, RULES),
         check_burn_timing(req.planned_time, req.sunrise_time, req.sunset_time, RULES),
+        check_peatland_status(req.peatland_status, RULES),
 
         check_buffer("peat_hag", RULES["buffers_m"]["peat_hag"], req.peat_hag_distance_m, "should_not"),
         check_bare_peat_buffer(req.bare_peat_area_m2, req.bare_peat_distance_m, RULES),

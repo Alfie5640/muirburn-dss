@@ -1,4 +1,3 @@
-# checks.py
 import yaml
 from pathlib import Path
 from datetime import date, datetime, timedelta
@@ -21,23 +20,32 @@ def get_max_relevant_buffer(rules):
     return max(candidates)
 
 def get_query_bbox(polygon, max_buffer_m: float, margin_m: float = 50) -> tuple:
-    """Bounding box around the burn polygon, padded by the largest buffer
-    distance you need to check plus a safety margin"""
-    minx, miny, maxx, maxy = polygon.bounds
-    pad = max_buffer_m + margin_m
-    return (minx - pad, miny - pad, maxx + pad, maxy + pad)
+    coords = polygon["geometry"]["coordinates"][0]
+    lons = [pt[0] for pt in coords]
+    lats = [pt[1] for pt in coords]
+    minx, maxx = min(lons), max(lons)
+    miny, maxy = min(lats), max(lats)
+    pad_deg = (max_buffer_m + margin_m) / 111_000
+    return (minx - pad_deg, miny - pad_deg, maxx + pad_deg, maxy + pad_deg)
 
 def fetch_features_for_check(polygon, rules) -> dict:
     max_buffer = get_max_relevant_buffer(rules)
     bbox = get_query_bbox(polygon, max_buffer)
 
-    return {
-        "roads": query_os_open_roads(bbox),
-        "watercourses": query_os_open_rivers(bbox),
-        "native_woodland": query_nwss(bbox),
-        "bare_peat": query_peat_layer(bbox), 
+    sources = {
+        "roads": query_os_open_roads,
+        "watercourses": query_os_open_rivers,
+        "native_woodland": query_nwss,
+        "bare_peat": query_peat_layer,
     }
 
+    results = {}
+    for name, fn in sources.items():
+        try:
+            results[name] = fn(bbox)
+        except Exception as e:
+            results[name] = {"status": "unavailable", "error": str(e)}
+    return results
 
 def check_in_season(check_date: date, rules: dict) -> dict:
     season = rules["season"]
@@ -64,6 +72,15 @@ def check_in_season(check_date: date, rules: dict) -> dict:
         "season_end_used": season_end_used.isoformat(),
     }
 
+def check_peatland_status(status: str, rules: dict) -> dict:
+    effective_status = "peatland" if status == "uncertain" else status
+    return {
+        "check": "peatland_status",
+        "reported_status": status,
+        "effective_status": effective_status,
+        "advisory": "Status must be confirmed via NatureScot's interactive peat depth map, "
+                    "not this tool. 'Uncertain' with no survey data defaults to peatland",
+    }
 
 def check_slope(slope_to_check: float, rules: dict) -> dict:
     slope = rules["slope"]
