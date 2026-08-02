@@ -3,12 +3,40 @@ import yaml
 from pathlib import Path
 from datetime import date, datetime, timedelta
 
+from geodata import query_os_open_roads, query_os_open_rivers, query_nwss, query_peat_layer
+
 CONFIG_PATH = Path(__file__).parent / "muirburn_code_2026.yaml"
 
 
 def load_rules() -> dict:
     with open(CONFIG_PATH) as f:
         return yaml.safe_load(f)
+
+def get_max_relevant_buffer(rules):
+    candidates = [
+        *rules["buffers_m"].values(),
+        *rules["watercourse_buffers_m"].values(),
+        *rules["best_practice"].values(),
+    ]
+    return max(candidates)
+
+def get_query_bbox(polygon, max_buffer_m: float, margin_m: float = 50) -> tuple:
+    """Bounding box around the burn polygon, padded by the largest buffer
+    distance you need to check plus a safety margin"""
+    minx, miny, maxx, maxy = polygon.bounds
+    pad = max_buffer_m + margin_m
+    return (minx - pad, miny - pad, maxx + pad, maxy + pad)
+
+def fetch_features_for_check(polygon, rules) -> dict:
+    max_buffer = get_max_relevant_buffer(rules)
+    bbox = get_query_bbox(polygon, max_buffer)
+
+    return {
+        "roads": query_os_open_roads(bbox),
+        "watercourses": query_os_open_rivers(bbox),
+        "native_woodland": query_nwss(bbox),
+        "bare_peat": query_peat_layer(bbox), 
+    }
 
 
 def check_in_season(check_date: date, rules: dict) -> dict:
@@ -71,21 +99,17 @@ def check_burn_timing(planned_time: datetime, sunrise_time: datetime, sunset_tim
         "compliant": compliant,
     }
 
-
-# TODO:find real geometry dataset for my use case
-def calc_distance(polygon, feature_data) -> float:
-    return 0.0
-
-
-def check_fixed_buffer(polygon, feature_data, buffer_key: str, buffer_value: float, severity: str) -> dict:
-    dist_from = calc_distance(polygon, feature_data)
-    compliant = dist_from > buffer_value
+def check_buffer(feature_key: str, buffer_required_m: float, distance_confirmed_m: float, severity: str, distance_source: str = "user_confirmed") -> dict:
+    compliant = distance_confirmed_m > buffer_required_m
     return {
-        "check": f"{buffer_key}_buffer",
+        "check": f"{feature_key}_buffer",
         "severity": severity,
-        "buffer_required_m": buffer_value,
-        "distance_m": dist_from,
+        "buffer_required_m": buffer_required_m,
+        "distance_m": distance_confirmed_m,
+        "distance_source": distance_source,
         "compliant": compliant,
+        "advisory": "Distance must be confirmed on-site or via accurate survey "
+                    "Automated GIS estimates are not yet verified accurate enough for this buffer tolerance",
     }
 
 
@@ -94,18 +118,14 @@ def classify_bare_peat_area(area_m2: float, rules: dict) -> str:
     return "large" if area_m2 > threshold else "general"
 
 
-def check_bare_peat_buffer(polygon, feature_data, area_m2: float, rules: dict) -> dict:
+def check_bare_peat_buffer(area_m2: float, distance_confirmed_m: float, rules: dict) -> dict:
     classification = classify_bare_peat_area(area_m2, rules)
     if classification == "large":
-        return check_fixed_buffer(
-            polygon, feature_data, "bare_peat_large",
-            rules["buffers_m"]["bare_peat_large"], "should_not",
-        )
+        return check_buffer("bare_peat_large", rules["buffers_m"]["bare_peat_large"],
+                             distance_confirmed_m, "should_not")
     else:
-        return check_fixed_buffer(
-            polygon, feature_data, "bare_peat_general",
-            rules["best_practice"]["distance_from_bare_peat_general_m"], "best_practice",
-        )
+        return check_buffer("bare_peat_general", rules["best_practice"]["distance_from_bare_peat_general_m"],
+                             distance_confirmed_m, "best_practice")
 
 
 def get_watercourse_buffer_required(watercourse_width: float, rules: dict) -> float:
@@ -118,16 +138,11 @@ def get_watercourse_buffer_required(watercourse_width: float, rules: dict) -> fl
         return buffers["under_2m"]
 
 
-def check_watercourse_buffer(watercourse_width: float, polygon, rules: dict, feature_data) -> dict:
-    buffer = get_watercourse_buffer_required(watercourse_width, rules)
-    dist_from_burn = calc_distance(polygon, feature_data)
-    compliant = dist_from_burn >= buffer
-    return {
-        "check": "water_buffer",
-        "buffer_required_m": buffer,
-        "distance_m": dist_from_burn,
-        "compliant": compliant,
-    }
+def check_watercourse_buffer(watercourse_width_m: float, distance_confirmed_m: float, rules: dict, width_source: str = "user_confirmed") -> dict:
+    buffer = get_watercourse_buffer_required(watercourse_width_m, rules)
+    result = check_buffer("watercourse", buffer, distance_confirmed_m, "should_not")
+    result["width_source"] = width_source
+    return result
 
 
 def check_landowner_notification(notification_date: date, burn_start_date: date, previous_season_end: date, rules: dict) -> dict:
