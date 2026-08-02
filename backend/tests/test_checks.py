@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta
 from rules.checks import (
     load_rules,
+    RULE_MAP,
     check_in_season,
     check_slope,
     check_burn_timing,
@@ -8,8 +9,57 @@ from rules.checks import (
     check_watercourse_buffer,
 )
 
+import warnings
+
 rules = load_rules()
 
+#############
+# RULE COVERAGE
+#############
+
+IGNORE_PATHS = {
+    "last_verified",
+    "ruleset_version",
+}
+
+def test_all_rules_have_implementations():
+    def flatten(d, prefix=""):
+        for key, value in d.items():
+            path = f"{prefix}.{key}" if prefix else key
+            if isinstance(value, dict):
+                yield from flatten(value, path)
+            else:
+                yield path
+
+    yaml_paths = {
+        path
+        for path in flatten(rules)
+        if path not in IGNORE_PATHS
+    }
+
+    implemented_paths = {
+        path
+        for paths in RULE_MAP.values()
+        for path in paths
+    }
+
+    missing = {
+        yaml_path
+        for yaml_path in yaml_paths
+        if not any(
+            yaml_path.startswith(implemented)
+            for implemented in implemented_paths
+        )
+    }
+
+    if missing:
+        import warnings
+        warnings.warn(
+            "\nMissing rule implementations:\n"
+            + "\n".join(f"  - {rule}" for rule in sorted(missing)),
+            stacklevel=2
+        )
+        
 #############
 # CHECK SEASON
 #############
@@ -107,12 +157,15 @@ def test_watercourse_over_15m():
     assert get_watercourse_buffer_required(20, rules) == 30
 
 ############
-# WATERCOURSE BUFFER —
+# WATERCOURSE BUFFER 
+############
 
-def test_watercourse_compliance_stubbed_pending_geometry():
-    # calc_distance is not yet implemented and always returns 0.0,
-    # so compliant will always be False here until real geometry lands.
-    # This test exists to document that fact, not to validate compliance logic.
-    result = check_watercourse_buffer(8, polygon=None, rules=rules, feature_data=None)
-    assert result["buffer_required"] == 15
+def test_watercourse_compliance():
+    result = check_watercourse_buffer(
+        watercourse_width_m=8,
+        distance_confirmed_m=0,
+        rules=rules
+    )
+
+    assert result["buffer_required_m"] == 15
     assert result["compliant"] is False

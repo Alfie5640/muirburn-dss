@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from datetime import date, datetime
+from datetime import date, datetime, UTC
 from pydantic import BaseModel
 
 from rules.checks import (
@@ -14,10 +14,16 @@ from rules.checks import (
     lookup_sfrs_region,
     fetch_features_for_check,
     check_peatland_status,
+    summarise_features
 )
 
 app = FastAPI()
 RULES = load_rules()
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 
 class CheckRequest(BaseModel):
@@ -39,12 +45,10 @@ class CheckRequest(BaseModel):
 
     notification_date: date
     previous_season_end: date
-    sfrs_region: str  # user selected for v1
 
-    polygon: dict  # used only for feature discovery / adivsing in v1
+    sfrs_region: str # user defined for v1
 
-
-@app.post("/check")
+@app.post("/evaluate")
 def run_check(req: CheckRequest):
     compliance_checks = [
         check_in_season(req.burn_date, RULES),
@@ -56,23 +60,44 @@ def run_check(req: CheckRequest):
         check_bare_peat_buffer(req.bare_peat_area_m2, req.bare_peat_distance_m, RULES),
         check_buffer("native_woodland", RULES["buffers_m"]["native_woodland"], req.native_woodland_distance_m, "best_practice"),
         check_buffer("public_road", RULES["buffers_m"]["public_road"], req.public_road_distance_m, "should_not"),
-        check_buffer("artificial_drain", RULES["best_practice"]["distance_from_artificial_drain_m"], req.artificial_drain_distance_m, "best_practice"),
-        check_watercourse_buffer(req.watercourse_width_m, req.watercourse_distance_m, RULES),
+        check_buffer(
+            "artificial_drain",
+            RULES["best_practice"]["distance_from_artificial_drain_m"],
+            req.artificial_drain_distance_m,
+            "best_practice"
+        ),
+        check_watercourse_buffer(
+            req.watercourse_width_m,
+            req.watercourse_distance_m,
+            RULES
+        ),
 
-        check_landowner_notification(req.notification_date, req.burn_date, req.previous_season_end, RULES),
+        check_landowner_notification(
+            req.notification_date,
+            req.burn_date,
+            req.previous_season_end,
+            RULES
+        ),
         lookup_sfrs_region(req.sfrs_region, RULES),
     ]
-
-    detected_features = fetch_features_for_check(req.polygon, RULES)
 
     return {
         "ruleset_version": RULES["ruleset_version"],
         "last_verified": RULES["last_verified"],
-        "generated": datetime.utcnow().isoformat(),
-        "checks": compliance_checks,
-        "detected_features": detected_features,
+        "generated": datetime.now(UTC).isoformat(),
+        "checks": compliance_checks
     }
 
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+class FeatureDetectionRequest(BaseModel):
+    polygon: dict
+
+@app.post("/detect")
+def detect_features(req: FeatureDetectionRequest):
+
+    raw_features = fetch_features_for_check(req.polygon, RULES)
+    detected_features = summarise_features(raw_features)
+
+    return {
+        "generated": datetime.now(UTC).isoformat(),
+        "detected_features": detected_features
+    }
