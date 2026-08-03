@@ -102,3 +102,49 @@ def test_evaluate_endpoint():
     assert "slope" in names
     assert "watercourse_buffer" in names
     assert "landowner_notification" in names
+
+
+def test_burn_readiness_endpoint():
+    payload = {
+        "checks": [
+            {
+                "check": "season",
+                "status": "pass",
+                "message": "Burn date is within permitted season"
+            },
+            {
+                "check": "peatland",
+                "status": "warning",
+                "message": "Peat survey required before burning"
+            },
+            {
+                "check": "landowner_notification",
+                "status": "fail",
+                "message": "Landowner notification required"
+            }
+        ]
+    }
+
+    response = client.post("/burn-readiness", json=payload)
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert "ready" in data
+    assert "actions" in data
+    assert "generated" in data
+
+    assert data["ready"] is False
+
+    actions = data["actions"]
+
+    assert len(actions) == 2
+
+    priorities = [
+        action["priority"]
+        for action in actions
+    ]
+
+    assert "required" in priorities
+    assert "recommended" in priorities
