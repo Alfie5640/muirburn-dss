@@ -1,29 +1,34 @@
 # Muirburn Decision-Support Tool
 
-A geospatial decision-support tool to help muirburn licence holders in Scotland
-check whether a proposed burn site and date meet the requirements of the
-Muirburn Code (Wildlife Management and Muirburn (Scotland) Act 2024).
+A geospatial decision-support tool that helps muirburn licence holders in Scotland assess whether a proposed burn site and date comply with the Muirburn Code (Wildlife Management and Muirburn (Scotland) Act 2024).
 
-**Status:** Early work in progress
+> **Status:** Early work in progress.
 
 ## What this is
-Web(app) that provides support for people who are planning to carry out muiburn 
-to reduce risk of wildfires under the new license. It combines spread out information 
-into one checklist and helps users prove compliance with the Muirburn Code.
+
+A web application that supports practitioners planning to carry out muirburn under Scotland's new licensing system. It combines geospatial analysis with rule-based checks from the Muirburn Code to produce a single compliance checklist before a burn takes place.
+
+The tool helps users:
+
+- Assess whether a proposed burn meets objective requirements in the Muirburn Code.
+- Identify remaining manual actions (such as notifications and weather checks).
+- Record the evidence used to support operational planning.
 
 ## What this is not
-This tool does not replace official NatureScot guidance, the Muirburn Code
-itself, or professional/legal advice. Always refer to the official Code and
-NatureScot licensing guidance before making a burn.
+
+This tool does **not** replace official NatureScot guidance, the Muirburn Code, licence conditions, or professional judgement. Users remain responsible for complying with all applicable legislation and official guidance.
 
 ## Structure
-- `/backend` — FastAPI service running the rules engine and geospatial checks
-- `/frontend` — Next.js web app for drawing a site and viewing results
 
-## Rules and sources
-All thresholds are sourced directly from the Muirburn Code and NatureScot
-guidance. See `/backend/rules/` for the current ruleset and its last
-verified date against the live Code
+- `/backend` — FastAPI service providing the rules engine and geospatial analysis.
+- `/frontend` — Next.js web application for selecting burn sites and viewing compliance results.
+
+## Rules and Sources
+
+All thresholds and decision rules are sourced from publicly available Muirburn Code and NatureScot guidance.
+
+The backend stores these rules separately from application logic in a versioned YAML ruleset (`/backend/rules/`), making future updates to the Code easier to maintain.
 
 ## License
+
 MIT
