@@ -1,41 +1,51 @@
-@import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
 
 :root {
-  /* Page */
-  --background: #dfe8dc;
-  --foreground: #243024;
+  --moor-900: #1e2a1f;
+  --moor-700: #3c4a34;
+  --moor-500: #5c6e50;
+  --paper: #f5f1e6;
+  --paper-line: #d8d0bc;
+  --ink: #22201b;
+  --ink-soft: #55503f;
 
-  /* Cards */
-  --card: #fcfaf5;
+  --pass: #2f6b3c;
+  --pass-bg: #e7efe2;
+  --warn: #93590f;
+  --warn-bg: #f6ecd6;
+  --fail: #a23b2e;
+  --fail-bg: #f5e2de;
 
-  /* Borders */
-  --border: #bccab8;
+  --font-display: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
 
-  /* Accent */
-  --primary: #355e3b;
+  --radius: 3px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-border: var(--border);
-  --color-primary: var(--primary);
-
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  background: var(--moor-900);
+  color: var(--ink);
+  font-family: var(--font-display);
 }
 
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 20px;
-  margin: 20px;
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input,
+select {
+  font-family: var(--font-mono);
+}
+
+::selection {
+  background: var(--moor-500);
+  color: var(--paper);
 }
