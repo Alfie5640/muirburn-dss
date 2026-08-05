@@ -26,29 +26,29 @@ export default function Header() {
           Muirburn Decision-Support Tool
         </h1>
         <p
-          style={{
-            margin: "4px 0 0",
-            fontFamily: "var(--font-mono)",
-            fontSize: "12px",
-            color: "var(--paper-line)",
-            opacity: 0.85,
-          }}
-        >
-          Pre-burn compliance check — not a substitute for official guidance or legal advice
-        </p>
-      </div>
-      <span
         style={{
+          margin: "4px 0 0",
           fontFamily: "var(--font-mono)",
-          fontSize: "11px",
-          color: "var(--paper)",
-          background: "var(--moor-700)",
-          padding: "4px 10px",
-          borderRadius: "var(--radius)",
+          fontSize: "12px",
+          color: "var(--paper-line)",
+          opacity: 0.85,
         }}
       >
-        Early WIP · not yet validated for real-world use
-      </span>
+        Pre-burn compliance check. Rules gathered from{" "}
+        <a
+          href="https://www.nature.scot/doc/guidance-muirburn-code"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: "var(--paper)",
+            textDecoration: "underline",
+          }}
+        >
+          Muirburn Code
+        </a>
+        . Not a substitute for official guidance or legal advice.
+      </p>
+      </div>
     </header>
   );
 }

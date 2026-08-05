@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import type { EvaluateResponse, GeoJSONPolygon, ReadinessStatus } from "../lib/types";
 import { deriveStatus } from "../lib/deriveStatus";
+import { useState } from "react";
 
 type ComplianceReportProps = {
   loading: boolean;
@@ -10,34 +10,70 @@ type ComplianceReportProps = {
   polygon: GeoJSONPolygon | null;
 };
 
-const ICONS: Record<ReadinessStatus, string> = { pass: "✓", warning: "⚠", fail: "✗" };
-const COLORS: Record<ReadinessStatus, string> = { pass: "var(--pass)", warning: "var(--warn)", fail: "var(--fail)" };
-const BGS: Record<ReadinessStatus, string> = { pass: "var(--pass-bg)", warning: "var(--warn-bg)", fail: "var(--fail-bg)" };
+const ICONS: Record<ReadinessStatus, string> = {
+  pass: "✓",
+  warning: "⚠",
+  fail: "✗",
+  unknown: "?",
+};
 
-const MANUAL_CHECKS = [
+const COLORS: Record<ReadinessStatus, string> = {
+  pass: "var(--pass)",
+  warning: "var(--warn)",
+  fail: "var(--fail)",
+  unknown: "var(--ink-soft)",
+};
+
+const BGS: Record<ReadinessStatus, string> = {
+  pass: "var(--pass-bg)",
+  warning: "var(--warn-bg)",
+  fail: "var(--fail-bg)",
+  unknown: "var(--paper-line)",
+};
+
+const PRE_BURN_CHECKLIST = [
   "Weather forecast reviewed",
-  "Fire Danger Rating checked (SFRS wildfire page)",
-  "Landowner / occupier notified",
-  "SFRS Control Centre notified before burn",
+  "Fire Danger Rating checked",
+  "Landowners / occupiers notified",
+  "SFRS Control Centre notified before burning",
 ];
 
 function polygonCentroid(polygon: GeoJSONPolygon): { lat: number; lon: number } {
   const coords = polygon.geometry.coordinates[0];
-  const [sumLon, sumLat] = coords.reduce(([lon, lat], [x, y]) => [lon + x, lat + y], [0, 0]);
-  return { lat: sumLat / coords.length, lon: sumLon / coords.length };
+
+  const [sumLon, sumLat] = coords.reduce(
+    ([lon, lat], [x, y]) => [lon + x, lat + y],
+    [0, 0]
+  );
+
+  return {
+    lat: sumLat / coords.length,
+    lon: sumLon / coords.length,
+  };
 }
 
-export default function ComplianceReport({ loading, data, polygon }: ComplianceReportProps) {
-  const [manualChecked, setManualChecked] = useState<boolean[]>(MANUAL_CHECKS.map(() => false));
-
+export default function ComplianceReport({
+  loading,
+  data,
+  polygon,
+}: ComplianceReportProps) {
   if (!loading && !data) return null;
 
   const centroid = polygon ? polygonCentroid(polygon) : null;
+  const [checkedItems, setCheckedItems] = useState(PRE_BURN_CHECKLIST.map(() => false));
 
   return (
     <section style={{ margin: "0 20px 20px" }}>
-      <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "14px", color: "var(--paper)", margin: "0 0 8px" }}>
-        Muirburn preparation checklist
+      <h2
+        style={{
+          fontFamily: "var(--font-display)",
+          fontWeight: 700,
+          fontSize: "14px",
+          color: "var(--paper)",
+          margin: "0 0 8px",
+        }}
+      >
+        Notification & burn preparation report
       </h2>
 
       <div
@@ -49,84 +85,197 @@ export default function ComplianceReport({ loading, data, polygon }: ComplianceR
           fontFamily: "var(--font-mono)",
         }}
       >
-        {loading && <p style={{ fontSize: "13px", color: "var(--ink-soft)" }}>Running compliance checks against the ruleset…</p>}
+        {loading && (
+          <p style={{ fontSize: "13px", color: "var(--ink-soft)" }}>
+            Checking notification and burn preparation requirements…
+          </p>
+        )}
 
         {!loading && data && (
           <>
-            <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "12px", marginBottom: "14px" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: "12px",
+                marginBottom: "14px",
+              }}
+            >
               <div>
-                <div style={{ fontSize: "11px", color: "var(--ink-soft)" }}>LOCATION</div>
-                <div style={{ fontSize: "13px" }}>{centroid ? `${centroid.lat.toFixed(5)}, ${centroid.lon.toFixed(5)}` : "—"}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: "11px", color: "var(--ink-soft)" }}>GENERATED</div>
-                <div style={{ fontSize: "13px" }}>{new Date(data.generated).toLocaleString("en-GB")}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: "11px", color: "var(--ink-soft)" }}>RULESET</div>
+                <div style={{ fontSize: "11px", color: "var(--ink-soft)" }}>
+                  LOCATION
+                </div>
                 <div style={{ fontSize: "13px" }}>
-                  {data.ruleset_version} <span style={{ color: "var(--ink-soft)" }}>(verified {data.last_verified})</span>
+                  {centroid
+                    ? `${centroid.lat.toFixed(5)}, ${centroid.lon.toFixed(5)}`
+                    : "—"}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: "11px", color: "var(--ink-soft)" }}>
+                  GENERATED
+                </div>
+                <div style={{ fontSize: "13px" }}>
+                  {new Date(data.generated).toLocaleString("en-GB")}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: "11px", color: "var(--ink-soft)" }}>
+                  RULESET
+                </div>
+                <div style={{ fontSize: "13px" }}>
+                  {data.ruleset_version}
                 </div>
               </div>
             </div>
 
-            <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--moor-900)", marginBottom: "6px", fontFamily: "var(--font-display)" }}>
-              AUTOMATED CHECKS
+
+            <div
+              style={{
+                fontSize: "12px",
+                fontWeight: 600,
+                color: "var(--moor-900)",
+                marginBottom: "6px",
+                fontFamily: "var(--font-display)",
+              }}
+            >
+              DATE, TIMING & NOTIFICATION CHECKS
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginBottom: "16px" }}>
+
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "5px",
+                marginBottom: "16px",
+              }}
+            >
               {data.checks
-                .filter((c) => c.check !== "sfrs_contact")
-                .map((c) => {
-                  const { status, message } = deriveStatus(c);
+                .filter((c) =>
+                  [
+                    "season",
+                    "burn_timing",
+                    "landowner_notification",
+                  ].includes(c.check)
+                )
+                .map((check) => {
+                  const { status, message } = deriveStatus(check);
+
                   return (
                     <div
-                      key={c.check}
+                      key={check.check}
                       style={{
                         display: "flex",
                         gap: "8px",
                         alignItems: "flex-start",
                         fontSize: "13px",
-                        padding: "5px 8px",
+                        padding: "8px 10px",
                         background: BGS[status],
+                        border: `1px solid ${COLORS[status]}`,
                         borderRadius: "var(--radius)",
                       }}
                     >
-                      <span style={{ color: COLORS[status], fontWeight: 700 }}>{ICONS[status]}</span>
+                      <span
+                        style={{
+                          color: COLORS[status],
+                          fontWeight: 700,
+                        }}
+                      >
+                        {ICONS[status]}
+                      </span>
+
                       <span>{message}</span>
                     </div>
                   );
                 })}
             </div>
 
+
             {(() => {
-              const sfrsCheck = data.checks.find((c) => c.check === "sfrs_contact");
-              if (!sfrsCheck) return null;
-              const { message } = deriveStatus(sfrsCheck);
+              const sfrs = data.checks.find(
+                (c) => c.check === "sfrs_contact"
+              );
+
+              if (!sfrs) return null;
+
+              const { message } = deriveStatus(sfrs);
+
               return (
-                <div style={{ fontSize: "12px", color: "var(--ink-soft)", marginBottom: "16px" }}>
-                  <strong style={{ color: "var(--ink)" }}>SFRS contact: </strong>
-                  {message}
+                <div
+                  style={{
+                    fontSize: "13px",
+                    padding: "8px 10px",
+                    background: "var(--paper-line)",
+                    borderRadius: "var(--radius)",
+                  }}
+                >
+                  <strong>SFRS contact:</strong> {message}
                 </div>
               );
             })()}
 
-            <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--moor-900)", marginBottom: "6px", fontFamily: "var(--font-display)" }}>
-              MANUAL CHECKS
+            <div style={{
+                fontSize: "12px",
+                fontWeight: 600,
+                color: "var(--moor-900)",
+                marginTop: "16px",
+                marginBottom: "6px",
+                fontFamily: "var(--font-display)",
+              }}
+            >
+              BEFORE BURNING
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              {MANUAL_CHECKS.map((label, i) => (
-                <label key={label} style={{ display: "flex", gap: "8px", alignItems: "center", fontSize: "13px" }}>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "6px",
+              }}
+            >
+              {PRE_BURN_CHECKLIST.map((item, i) => (
+                <label
+                  key={item}
+                  style={{
+                    display: "flex",
+                    gap: "8px",
+                    alignItems: "center",
+                    fontSize: "13px",
+                  }}
+                >
                   <input
                     type="checkbox"
-                    checked={manualChecked[i]}
+                    checked={checkedItems[i]}
                     onChange={(e) =>
-                      setManualChecked((prev) => prev.map((v, idx) => (idx === i ? e.target.checked : v)))
+                      setCheckedItems((prev) =>
+                        prev.map((checked, index) =>
+                          index === i ? e.target.checked : checked
+                        )
+                      )
                     }
                   />
-                  {label}
+                  {item}
                 </label>
               ))}
             </div>
+
+
+            <p
+              style={{
+                fontSize: "11px",
+                color: "var(--ink-soft)",
+                marginTop: "14px",
+                marginBottom: 0,
+              }}
+            >
+              This report covers notification, timing and seasonal
+              requirements. Site features and required buffers are shown in the
+              site report above.
+            </p>
           </>
         )}
       </div>

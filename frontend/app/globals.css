@@ -9,12 +9,12 @@
   --ink: #22201b;
   --ink-soft: #55503f;
 
-  --pass: #2f6b3c;
-  --pass-bg: #e7efe2;
-  --warn: #93590f;
-  --warn-bg: #f6ecd6;
-  --fail: #a23b2e;
-  --fail-bg: #f5e2de;
+  --pass: #166534;
+  --pass-bg: #dcfce7;
+  --warn: #92400e;
+  --warn-bg: #fef3c7;
+  --fail: #b91c1c;
+  --fail-bg: #fee2e2;
 
   --font-display: "IBM Plex Sans", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;

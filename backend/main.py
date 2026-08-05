@@ -6,17 +6,14 @@ from pydantic import BaseModel
 from rules.checks import (
     load_rules,
     check_in_season,
-    check_slope,
     check_burn_timing,
-    check_buffer,
-    check_bare_peat_buffer,
-    check_watercourse_buffer,
     check_landowner_notification,
     lookup_sfrs_region,
     fetch_features_for_check,
-    check_peatland_status,
-    summarise_features
+    summarise_features,
+    evaluate_slope,
 )
+from geodata import query_dem_slope
 
 app = FastAPI()
 
@@ -35,9 +32,17 @@ def health():
     return {"status": "ok"}
 
 
-# -------------------------
-# Environmental detection
-# -------------------------
+@app.get("/rules")
+def get_rules():
+    return {
+        "ruleset_version": RULES["ruleset_version"],
+        "last_verified": RULES["last_verified"],
+        "slope": RULES["slope"],
+        "buffers_m": RULES["buffers_m"],
+        "watercourse_buffers_m": RULES["watercourse_buffers_m"],
+        "best_practice": RULES["best_practice"],
+    }
+
 
 class FeatureDetectionRequest(BaseModel):
     polygon: dict
@@ -46,69 +51,39 @@ class FeatureDetectionRequest(BaseModel):
 @app.post("/detect")
 def detect_features(req: FeatureDetectionRequest):
 
-    raw_features = fetch_features_for_check(
-        req.polygon,
-        RULES
-    )
-
+    raw_features = fetch_features_for_check(req.polygon, RULES)
     detected_features = summarise_features(raw_features)
+
+    try:
+        slope_stats = query_dem_slope(req.polygon)
+        slope = evaluate_slope(slope_stats, RULES)
+    except Exception as e:
+        slope = {"check": "slope", "available": False, "error": str(e)}
 
     return {
         "generated": datetime.now(UTC).isoformat(),
-        "detected_features": detected_features
+        "detected_features": detected_features,
+        "slope": slope,
     }
 
 
-# -------------------------
-# Compliance evaluation
-# -------------------------
-
 class AssessmentRequest(BaseModel):
-
     burn_date: date
-
     planned_time: datetime
     sunrise_time: datetime
     sunset_time: datetime
-
-    slope_degrees: float
-
-    watercourse_width_m: float
-    watercourse_distance_m: float
-
-    peat_hag_distance_m: float
-
-    bare_peat_area_m2: float
-    bare_peat_distance_m: float
-
-    native_woodland_distance_m: float
-    public_road_distance_m: float
-    artificial_drain_distance_m: float
-
-    peatland_status: str
-
     notification_date: date
     previous_season_end: date
-
     sfrs_region: str
 
 
 @app.post("/evaluate")
 def evaluate(req: AssessmentRequest):
-
     checks = [
         check_in_season(req.burn_date, RULES),
-        check_slope(req.slope_degrees,RULES),
-        check_burn_timing(req.planned_time,req.sunrise_time,req.sunset_time,RULES),
-        check_peatland_status(req.peatland_status,RULES),
-        check_buffer("peat_hag",RULES["buffers_m"]["peat_hag"],req.peat_hag_distance_m,"should_not"),
-        check_bare_peat_buffer(req.bare_peat_area_m2,req.bare_peat_distance_m,RULES),
-        check_buffer("native_woodland",RULES["buffers_m"]["native_woodland"],req.native_woodland_distance_m,"best_practice"),
-        check_buffer("public_road",RULES["buffers_m"]["public_road"],req.public_road_distance_m,"should_not"),
-        check_buffer("artificial_drain",RULES["best_practice"]["distance_from_artificial_drain_m"],req.artificial_drain_distance_m,"best_practice"),
-        check_watercourse_buffer(req.watercourse_width_m,req.watercourse_distance_m,RULES),
-        check_landowner_notification(req.notification_date,req.burn_date,req.previous_season_end,RULES),
-        lookup_sfrs_region(req.sfrs_region,RULES),
+        check_burn_timing(req.planned_time, req.sunrise_time, req.sunset_time, RULES),
+        check_landowner_notification(req.notification_date, req.burn_date, req.previous_season_end, RULES),
+        lookup_sfrs_region(req.sfrs_region, RULES),
     ]
 
     return {
@@ -116,41 +91,4 @@ def evaluate(req: AssessmentRequest):
         "last_verified": RULES["last_verified"],
         "generated": datetime.now(UTC).isoformat(),
         "checks": checks
-    }
-
-
-# -------------------------
-# Burn readiness
-# -------------------------
-
-class BurnReadinessRequest(BaseModel):
-    checks: list[dict]
-
-
-@app.post("/burn-readiness")
-def burn_readiness(req: BurnReadinessRequest):
-
-    actions = []
-
-    for check in req.checks:
-
-        if check["status"] == "fail":
-            actions.append({"priority": "required","action": check["message"]})
-
-        elif check["status"] == "warning":
-            actions.append({"priority": "recommended","action": check["message"]})
-
-
-    return {
-        "ready": len(
-            [
-                action
-                for action in actions
-                if action["priority"] == "required"
-            ]
-        ) == 0,
-
-        "actions": actions,
-
-        "generated": datetime.now(UTC).isoformat()
     }
